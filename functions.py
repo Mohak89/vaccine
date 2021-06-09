@@ -4,11 +4,8 @@ import time
 from datetime import datetime, date
 from hashlib import sha256
 import jwt
+import re
 import copy
-pincode = "485001"
-vaccine = "COAXIN"
-min_age_limit = 18
-mobile = 8817141845
 BOOKING_URL = "https://cdn-api.co-vin.in/api/v2/appointment/schedule"
 URL_PINCODE = "https://cdn-api.co-vin.in/api/v2/appointment/sessions/findByPin"
 BENEFICIARIES_URL = "https://cdn-api.co-vin.in/api/v2/appointment/beneficiaries"
@@ -31,26 +28,46 @@ def generate_otp(mobile, header):
     data = {
         "mobile": mobile,
         # Some sort of secret key
-        "secret": "U2FsdGVkX1+z/4Nr9nta+2DrVJSv7KS6VoQUSQ1ZXYDx/CJUkWxFYG6P3iM/VW+6jLQ9RDQVzp/RcZ8kbT41xw==",
+        "secret": "U2FsdGVkX1+z/4Nr9nta+2DrVJSv7KS6VoQUSQ1ZXYDx/CJUkWxFYG6P3iM/VW+6jLQ9RDQVzp/RcZ8kbT41xw=="
     }
     print(f"Requesting OTP with mobile number {mobile}..")
-    txn_id = requests.post(
-        url=OTP_URL,
-        json=data,
-        headers=header,
-    )
-    return txn_id
+    txnid = requests.post(url=OTP_URL, json=data, headers=header)
+    if txnid.status_code == 200:
+        txnid = txnid.json()["txnId"]
+        return txnid
+    else:
+        return None
 
 
 # Verify that otp
-def verify_otp(otp, txn_id, header):
+def verify_otp(txnid, header):
+    # t_end = time.time() + 60 * 3  # try to read OTP for atmost 3 minutes
+    # while time.time() < t_end:
+    #     response = requests.get(storage_url)
+    #     if response.status_code == 200:
+    #         print("OTP SMS is:" + response.text)
+
+    #         OTP = response.text
+    #         OTP = re.findall("[0-9]{6}",OTP)[0]
+    #         if not OTP:
+    #             time.sleep(5)
+    #             continue
+    #         break
+    #     else:
+    #         # Hope it won't 500 a little later
+    #         print("error fetching OTP API:" + response.text)
+    #         time.sleep(5)
+
+    # if not OTP:
+    #     return None
+    otp = int(input())
     data = {"otp": sha256(str(otp).encode(
-        'utf-8')).hexdigest(), "txn_id": txn_id}
-    token = requests.post(
-        url=VALIDATE_OTP,
-        json=data,
-        headers=header)
-    return token
+        'utf-8')).hexdigest(), "txnId": txnid}
+    token = requests.post(url=VALIDATE_OTP, json=data, headers=header)
+    if token.status_code == 200:
+        return token.json()["token"]
+    else:
+        return None
 
 
 def is_token_valid(token):
@@ -74,7 +91,7 @@ def create_header(auth_token):
 # get the today's date and make a tuple in format of date,month,year
 def currrent_date():
     date = time.localtime()
-    return ((date.tm_mday, date.tm_mon, date.tm_year))
+    return (date.tm_mday, date.tm_mon, date.tm_year)
 
 
 def next_date(n):
@@ -84,10 +101,13 @@ def next_date(n):
 
 
 # Function to fetch data from the cowin api
-def fetch_data_calendar(pincode, date, header):
+def fetch_data_calendar(pincode, date, header, vaccine_type):
     date_string = '-'.join(str(x) for x in date)
     url = CALENDAR_URL_PINCODE
-    data = {"pincode": pincode, "date": date_string}
+    if vaccine_type != " ":
+        data = {"pincode": pincode, "date": date_string, "vaccine": vaccine_type}
+    else:
+        data = {"pincode": pincode, "date": date_string}
     result = requests.get(url, params=data, headers=header)
     return result
 
@@ -139,20 +159,9 @@ def dose_1_date(data, min_age):
     for x in data["sessions"]:
         if x["available_capacity"] > 0 and x["min_age_limit"] == min_age:
             dose_1_data.append(
-                (x["center_id"], x["name"], x["vaccine"], x["available_capacity"]))
+                (x["center_id"], x["name"], x["vaccine"], x["available_capacity_dose1"]))
     return dose_1_data
 
-# Vaccien centers for dose 1 for next 7 days
-
-
-def dose_1_calendar(data, min_age):
-    dose_1_data = []
-    for x in data["centers"]:
-        for j in x["sessions"]:
-            if j["available_capacity"] > 0 and j["min_age_limit"] == min_age:
-                dose_1_data.append((x["center_id"], x["name"],  j["vaccine"],
-                                    j["available_capacity_dose1"], j["available_capacity_dose2"], j["date"]))
-    return dose_1_data
 
 # Vaccine centers for dose 2 with regard to vaccine type and age limit
 
@@ -168,94 +177,44 @@ def dose_2_date(data, min_age, vaccine_type):
 # Vaccien centers for dose 2 for next 7 days
 
 
-def dose_2_calendar(data, min_age, vaccine_type):
-    dose_2_data = []
+def calendar_data(data, min_age, option):
+    cal_data = []
     for x in data["centers"]:
         for j in x["sessions"]:
-            if(j["min_age_limit"] == min_age and vaccine_type != "" and j["vaccine"] == vaccine_type and j["available_capacity_dose2"] > 0):
-                dose_2_data.append((x["center_id"], x["name"],  j["vaccine"],
-                                    j["available_capacity_dose1"], j["available_capacity_dose2"], j["date"]))
-    return dose_2_data
+            if(j["min_age_limit"] == min_age):
+                if option == 2 and j["available_capacity_dose2"] > 0:
+                    cal_data.append(
+                        (x["center_id"], x["name"],  j["vaccine"], j["available_capacity_dose2"], j["date"]))
+                elif option == 1 and j["available_capacity_dose1"] > 0:
+                    cal_data.append(
+                        (x["center_id"], x["name"],  j["vaccine"], j["available_capacity_dose1"], j["date"]))
 
+    return cal_data
 
 
 def fetch_beneficiaries(header):
     return requests.get(BENEFICIARIES_URL, headers=header)
 
 
-def initialize_token():
-    txn_id = generate_otp(mobile,base_request_header)
-    if txn_id is None:
-        return txn_id
-    otp=int(input())
-    t_end = time.time() + 60 * 3  # try to read OTP for atmost 3 minutes
-    while time.time() < t_end:
-        auth_token=verify_otp(otp,txn_id,base_request_header)
-    if not otp:
-        return None
-    if txn_id.status_code==200:
-         txn_id=txn_id.json()["txn_id"]
-    if auth_token.status_code==200:
-        auth_token=auth_token.json()["token"]
-    else:
-        txn_id = generate_otp(mobile,base_request_header)
-        auth_token=verify_otp(otp,txn_id,base_request_header)
+def initialize_token(mobile):
+    txnid = None
+    while txnid is None:
+        try:
+            txnid = generate_otp(mobile, base_request_header)
+            print("Otp generated:")
+        except Exception as e:
+            print(str(e))
+            print('OTP Retrying in 5 seconds')
+            time.sleep(5)
+
+    auth_token = None
+    while auth_token is None:
+        try:
+            auth_token = verify_otp(txnid, base_request_header)
+        except Exception as e:
+            print(str(e))
+            print('OTP Retrying in 5 seconds')
+            time.sleep(5)
+
     header = create_header(auth_token)
-
-    return header,auth_token
-
-#to check if the data fetched is correct or not
-def check_data(result):
-    if result.status_code == 200:
-        result = json.loads(result.text)
-        return result
-    else:
-        return False
-
-# option 1 for dose 1 and option 2 for dose 2
-def slot_finder(option, delay, auth_token, pincode, vaccine,min_age_limit):
-
-    date = currrent_date()
-    header,auth_token = initialize_token()
-    result = fetch_data_calendar(pincode, date, header)
-    if not is_token_valid(auth_token):
-        header,auth_token = initialize_token()
-        result = fetch_data_calendar(pincode, date, header)
-    istrue = True
-    while istrue:
-
-        # prints the current time
-        print(time.ctime(), "\n")
-        # Updates the data on the change of day
-        if not is_token_valid(auth_token):
-            header,auth_token = initialize_token()
-            result = fetch_data_calendar(pincode, date, header)
-        if time.localtime().tm_mday != date[2]:
-            date = currrent_date()
-            result = fetch_data_calendar(pincode, date, header)
-            
-
-        # filters the data on the basis of choice
-        if option == 1:
-            received_data = dose_1_calendar(result, min_age_limit)
-        elif option == 2:
-            received_data = dose_2_calendar(result, min_age_limit, vaccine)
-            print(received_data)
-
-        time.sleep(delay)
-
-        # If it succesfully receies the data then print it and break the program
-        if received_data != []:
-            for x in received_data:
-                print(x)
-            break
-
-        # if no available doses are found then update the data in gap of 5s
-        else:
-            result = fetch_data_calendar(pincode, date, header)
-            result = check_data(result)
-            if not result == False:
-                pass
-            else:
-                header,auth_token=initialize_token()
-                fetch_data_calendar(pincode,data,header)
+    return header, auth_token
