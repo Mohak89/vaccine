@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="/css/main.css">
+    <link rel="stylesheet" href="/css/nav.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css"
+        integrity="sha512-1ycn6IcaQQ40/MKBW2W4Rhis/DbILU74C1vSrLJxCq57o941Ym01SwNsOMqvEBFlcgUa6xLiPY/NS5R+E6ztJQ=="
+        crossorigin="anonymous" referrerpolicy="no-referrer" />
+
+    <title>Mohak</title>
+</head>
+
+<body>
+    <div id="navBar"></div>
+    <div class="section gridCenter">
+        <div class="flexRow w-100">
+            <div class="flexColumn h-100">
+                <div class="contactInfo">
+                    <div>
+                        <p>me@mohak.com</p>
+                        <p>Address - <br> CryoStation 001,<br> 24.5795245,80.733008<br>
+                            Planet AEX012 <br>
+                            Andromeda Galaxy
+                        </p>
+                    </div>
+                    <!-- <div>+918817141845</div> -->
+                </div>
+                <div class="flexRow socialMedia ">
+                    <a class="fab fa-facebook media animated fadeInUp" aria-hidden="true"></a>
+                    <a href="https://www.twitter.com/mohakagrawal89 " class="fab fa-twitter media animated fadeInUp"
+                        target="_blank" aria-hidden="true"></a>
+                    <a href="https://www.linkedin.com/in/agr-mohak" class="fab fa-linkedin media animated fadeInUp"
+                        target="_blank" aria-hidden="true"></a>
+                    <a href="https://www.instagram.com/mohak.agr" class="fab fa-instagram media animated fadeInUp"
+                        target="_blank" aria-hidden="true"></a>
+                </div>
+            </div>
+            <div class="form h-100" style="place-self:center;">
+                <p>Drop me a message</p>
+                <div class="name">
+                    <input type="text" placeholder="First Name" autocomplete="false">
+                    <input type="text" placeholder="Last Name">
+                </div>
+                <input type="text" placeholder="Mobile">
+                <input type="email" placeholder="name@company.com">
+                <textarea name="" id="" cols="30" rows="5" placeholder="Message"></textarea>
+                <button id="send" class="w-25 gridCenter">Send</button>
+            </div>
+        </div>
+
+    </div>
+    <div id="footer"></div>
+</body>
+<script src="/js/main.js"></script>
+<script>
+    var docWidth = document.documentElement.offsetWidth;
+
+    [].forEach.call(
+        document.querySelectorAll('*'),
+        function (el) {
+            if (el.offsetWidth > docWidth) {
+                console.log(el);
+            }
+        }
+    );
+</script>
+
+</html>
